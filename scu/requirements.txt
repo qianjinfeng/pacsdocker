@@ -1,0 +1,4 @@
+pynetdicom
+pydicom
+pika
+requests

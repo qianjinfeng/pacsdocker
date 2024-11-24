@@ -1,0 +1,140 @@
+
+name: mydicomapp
+
+services:
+  scu:
+    build: ./scu
+    container_name: scu-node
+    networks:
+      - dicom-network
+    ports:
+      - "11112:11112"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        restart: true
+      ipfs:
+        condition: service_healthy
+        restart: true
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASS}
+      - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
+      - IPFS_HOST=ipfs
+      - IPFS_PORT=5001
+  
+  # node-app:
+  #   build: 
+  #     context: ./node-app
+  #   container_name: node-js-app
+  #   networks:
+  #     - dicom-network
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #       restart: true
+  #     elasticsearch:
+  #       condition: service_healthy
+  #       restart: true
+  #     ipfs:
+  #       condition: service_healthy
+  #       restart: true
+  #   environment:
+  #     - RABBITMQ_HOST=rabbitmq
+  #     - RABBITMQ_USER=${RABBITMQ_USER}
+  #     - RABBITMQ_PASS=${RABBITMQ_PASS}
+  #     - RABBITMQ_PORT=${RABBITMQ_PORT}
+  #     - RABBITMQ_URL=amqp://rabbitmq:${RABBITMQ_PORT}
+  #     - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
+  #     - ELASTICSEARCH_HOST=elasticsearch
+  #     - ELASTICSEARCH_PORT=${ES_LOCAL_PORT}
+  #     - ELASTICSEARCH_USER=${ES_LOCAL_USER}
+  #     - ELASTICSEARCH_PASS=${ES_LOCAL_PASSWORD}
+  #     - ELASTICSEARCH_NODE=http://elasticsearch:${ES_LOCAL_PORT}
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-node
+    networks:
+      - dicom-network
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - ./volumes/rabbitmq-data:/var/lib/rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: ipfs-node
+    networks:
+      - dicom-network
+    ports:
+      - "5002:5001"
+      - "8081:8080"
+      - "4002:4001"
+    volumes:
+      - ./config/ipfs/001.sh:/container-init.d/001.sh
+      - ./volumes/ipfs-data:/data/ipfs
+      - ./config/ipfs/swarm.key:/data/ipfs/swarm.key
+    environment:
+      - IPFS_PROFILE=server
+      # - PRIVATE_PEER_ID=12D3KooWBizv4ZMcmYksaWUjmJkhrzXQjveMpT4Q32QWUQWcLEds  # 替换为实际的 Private Peer ID
+      # - PRIVATE_PEER_IP_ADDR=172.18.0.1  # 替换为实际的 Private Peer IP 地址
+      - LIBP2P_FORCE_PNET=1
+    healthcheck:
+      test: ["CMD", "ipfs", "id"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: ["daemon"]
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ES_LOCAL_VERSION}
+    container_name: ${ES_LOCAL_CONTAINER_NAME}
+    volumes:
+      - ./volumes/elasticsearch-data:/usr/share/elasticsearch/data
+      - ./config/elastic/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+      - ./config/elastic/plugins/analysis-pinyin:/tmp
+    ports:
+      - 127.0.0.1:9201:9200
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ES_LOCAL_PASSWORD}
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.license.self_generated.type=trial
+      - xpack.ml.use_auto_machine_memory_percent=true
+      - ES_JAVA_OPTS=-Xms${ES_LOCAL_HEAP_INIT} -Xmx${ES_LOCAL_HEAP_MAX}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl --output /dev/null --silent --head --fail -u elastic:${ES_LOCAL_PASSWORD} http://elasticsearch:${ES_LOCAL_PORT}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    entrypoint:
+      - bash
+      - -c
+      - |
+        /usr/share/elasticsearch/bin/elasticsearch-plugin install file:///tmp/elasticsearch-analysis-pinyin-${ES_LOCAL_VERSION}.zip && \
+        /usr/local/bin/docker-entrypoint.sh elasticsearch
+
+
+networks:
+  dicom-network:
