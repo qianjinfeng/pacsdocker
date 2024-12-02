@@ -1,2 +1,3 @@
-/parser/
+/consumer/node_modules
 /volumes/
+/consumer/*.log

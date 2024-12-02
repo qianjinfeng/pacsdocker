@@ -4,7 +4,7 @@ name: mydicomapp
 services:
   scu:
     build: ./scu
-    container_name: scu-node
+    container_name: node-scu
     networks:
       - dicom-network
     ports:
@@ -25,38 +25,39 @@ services:
       - IPFS_HOST=ipfs
       - IPFS_PORT=5001
   
-  # node-app:
-  #   build: 
-  #     context: ./node-app
-  #   container_name: node-js-app
-  #   networks:
-  #     - dicom-network
-  #   depends_on:
-  #     rabbitmq:
-  #       condition: service_healthy
-  #       restart: true
-  #     elasticsearch:
-  #       condition: service_healthy
-  #       restart: true
-  #     ipfs:
-  #       condition: service_healthy
-  #       restart: true
-  #   environment:
-  #     - RABBITMQ_HOST=rabbitmq
-  #     - RABBITMQ_USER=${RABBITMQ_USER}
-  #     - RABBITMQ_PASS=${RABBITMQ_PASS}
-  #     - RABBITMQ_PORT=${RABBITMQ_PORT}
-  #     - RABBITMQ_URL=amqp://rabbitmq:${RABBITMQ_PORT}
-  #     - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
-  #     - ELASTICSEARCH_HOST=elasticsearch
-  #     - ELASTICSEARCH_PORT=${ES_LOCAL_PORT}
-  #     - ELASTICSEARCH_USER=${ES_LOCAL_USER}
-  #     - ELASTICSEARCH_PASS=${ES_LOCAL_PASSWORD}
-  #     - ELASTICSEARCH_NODE=http://elasticsearch:${ES_LOCAL_PORT}
+  consumer:
+    build: 
+      context: ./consumer
+    container_name: node-consumer
+    networks:
+      - dicom-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        restart: true
+      elasticsearch:
+        condition: service_healthy
+        restart: true
+      ipfs:
+        condition: service_healthy
+        restart: true
+    environment:
+      - NODE_ENV=development
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_URL=amqp://rabbitmq:${RABBITMQ_PORT}
+      - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=${ES_LOCAL_PORT}
+      - ELASTICSEARCH_USER=${ES_LOCAL_USER}
+      - ELASTICSEARCH_PASS=${ES_LOCAL_PASSWORD}
+      - ELASTICSEARCH_NODE=http://elasticsearch:${ES_LOCAL_PORT}
 
   rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq-node
+    image: rabbitmq:3-management-alpine
+    container_name: node-rabbitmq
     networks:
       - dicom-network
     ports:
@@ -75,7 +76,7 @@ services:
 
   ipfs:
     image: ipfs/kubo:latest
-    container_name: ipfs-node
+    container_name: node-ipfs
     networks:
       - dicom-network
     ports:
@@ -100,11 +101,13 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_LOCAL_VERSION}
-    container_name: ${ES_LOCAL_CONTAINER_NAME}
+    container_name: node-es
     volumes:
       - ./volumes/elasticsearch-data:/usr/share/elasticsearch/data
       - ./config/elastic/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
-      - ./config/elastic/plugins/analysis-pinyin:/tmp
+      - ./config/elastic/plugins/analysis-pinyin:/usr/share/plugins
+    networks:
+      - dicom-network
     ports:
       - 127.0.0.1:9201:9200
     environment:
@@ -112,7 +115,7 @@ services:
       - ELASTIC_PASSWORD=${ES_LOCAL_PASSWORD}
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=false
-      - xpack.license.self_generated.type=trial
+      - xpack.license.self_generated.type=basic
       - xpack.ml.use_auto_machine_memory_percent=true
       - ES_JAVA_OPTS=-Xms${ES_LOCAL_HEAP_INIT} -Xmx${ES_LOCAL_HEAP_MAX}
     ulimits:
@@ -132,7 +135,7 @@ services:
       - bash
       - -c
       - |
-        /usr/share/elasticsearch/bin/elasticsearch-plugin install file:///tmp/elasticsearch-analysis-pinyin-${ES_LOCAL_VERSION}.zip && \
+        /usr/share/elasticsearch/bin/elasticsearch-plugin install file:///usr/share/plugins/elasticsearch-analysis-pinyin-${ES_LOCAL_VERSION}.zip && \
         /usr/local/bin/docker-entrypoint.sh elasticsearch
 
 

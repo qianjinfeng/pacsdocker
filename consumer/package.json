@@ -1,0 +1,18 @@
+{
+  "name": "consumer",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "consume rabbitmq and send to elastic",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "qian jinfeng",
+  "license": "ISC",
+  "dependencies": {
+    "@elastic/elasticsearch": "^8.15.0",
+    "amqplib": "^0.10.4",
+    "dotenv": "^16.4.5",
+    "pako": "^2.1.0",
+    "winston": "^3.17.0"
+  }
+}
