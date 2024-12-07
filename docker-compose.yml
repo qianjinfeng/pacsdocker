@@ -55,6 +55,26 @@ services:
       - ELASTICSEARCH_PASS=${ES_LOCAL_PASSWORD}
       - ELASTICSEARCH_NODE=http://elasticsearch:${ES_LOCAL_PORT}
 
+  web:
+    build: 
+      context: ./web
+    container_name: node-web
+    ports:
+      - 4001:4000
+    networks:
+      - dicom-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+        restart: true
+    environment:
+      - NODE_ENV=development
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=${ES_LOCAL_PORT}
+      - ELASTICSEARCH_USER=${ES_LOCAL_USER}
+      - ELASTICSEARCH_PASS=${ES_LOCAL_PASSWORD}
+      - ELASTICSEARCH_NODE=http://elasticsearch:${ES_LOCAL_PORT}
+
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: node-rabbitmq
@@ -113,7 +133,7 @@ services:
     environment:
       - discovery.type=single-node
       - ELASTIC_PASSWORD=${ES_LOCAL_PASSWORD}
-      - xpack.security.enabled=true
+      - xpack.security.enabled=false
       - xpack.security.http.ssl.enabled=false
       - xpack.license.self_generated.type=basic
       - xpack.ml.use_auto_machine_memory_percent=true

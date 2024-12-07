@@ -1,0 +1,33 @@
+{
+  "type": "module",
+  "name": "mydweb",
+  "version": "1.0.0",
+  "description": "This project was bootstrapped with Fastify-CLI.",
+  "main": "app.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node --test test/**/*.test.js",
+    "start": "fastify start -l info app.js",
+    "dev": "fastify start -w -l info -P app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/autoload": "^6.0.0",
+    "@fastify/cors": "^10.0.1",
+    "@fastify/elasticsearch": "^4.0.1",
+    "@fastify/env": "^5.0.1",
+    "@fastify/sensible": "^6.0.0",
+    "fastify": "^5.0.0",
+    "fastify-cli": "^7.0.1",
+    "fastify-plugin": "^5.0.0",
+    "loglevelnext": "^6.0.0",
+    "pako": "^2.1.0"
+  },
+  "devDependencies": {
+    "c8": "^10.1.2"
+  }
+}
