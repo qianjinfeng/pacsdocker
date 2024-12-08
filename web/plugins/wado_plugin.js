@@ -151,7 +151,11 @@ export default fp(async function (fastify, opts) {
           const res = [];
    
           const index = request.query.index || 'instance';
-          const query = request.query.query || { match: {"StudyInstanceUID": request.params.study} };
+          const query = request.query.query || { 
+            term: {
+              StudyInstanceUID: request.params.study
+            } 
+          };
           const from = parseInt(request.query.from) || 0;
           const size = parseInt(request.query.size) || 1000;
       
@@ -171,7 +175,14 @@ export default fp(async function (fastify, opts) {
           const res = [];
    
           const index = request.query.index || 'instance';
-          const query = request.query.query || { match: {"StudyInstanceUID": request.params.study, "SeriesInstanceUID": request.params.series} };
+          const query = request.query.query || {
+            bool: {
+              must: [
+                { term: { StudyInstanceUID: request.params.study } }, 
+                { term: { SeriesInstanceUID: request.params.series } }  
+              ]
+            }
+          };
           const from = parseInt(request.query.from) || 0;
           const size = parseInt(request.query.size) || 100;
       
@@ -193,7 +204,15 @@ export default fp(async function (fastify, opts) {
           const res = [];
    
           const index = request.query.index || 'instance';
-          const query = request.query.query || { match: {"StudyInstanceUID": request.params.study,"SeriesInstanceUID": request.params.series, "SopInstanceUID": request.params.instance} };
+          const query = request.query.query || {
+            bool: {
+              must: [
+                { term: { StudyInstanceUID: request.params.study } }, 
+                { term: { SeriesInstanceUID: request.params.series } },
+                { term: { SOPInstanceUID: request.params.instance } }
+              ]
+            }
+          };
           const from = parseInt(request.query.from) || 0;
           const size = parseInt(request.query.size) || 100;
       

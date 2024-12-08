@@ -8,7 +8,7 @@ services:
     networks:
       - dicom-network
     ports:
-      - "11112:11112"
+      - "11113:11112"
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -60,7 +60,7 @@ services:
       context: ./web
     container_name: node-web
     ports:
-      - 4001:4000
+      - 4004:4000
     networks:
       - dicom-network
     depends_on:
