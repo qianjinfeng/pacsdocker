@@ -6,7 +6,7 @@ docker compose up -d
 python -m pynetdicom storescu 127.0.0.1 11113 ~/Downloads/dicom/s/DICOM/24092403/54470000 -r -v -cx
 python -m pynetdicom storescu 127.0.0.1 11113 ~/Downloads/dicom/2/DICOM/I3   -v -cx
 curl -u elastic:elastic -X GET  http://localhost:9201/study/_search?pretty -H 'Content-Type: application/json'
-curl http://localhost:4001/studies
+curl http://localhost:4004/studies
 docker compose down
 
 
