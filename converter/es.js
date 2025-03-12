@@ -70,7 +70,7 @@ export async function setupIndicesAndPipelines() {
         });
         log.info(`Template ${temp} mapping deleted.`);
     } catch (error) {
-      if (error.meta.statusCode === 404 ) {
+      if (error.meta.statusCode === 400 ) {
         log.info(`Template ${temp} does not exists.`);
       } else {
         log.error(`Error creating Template ${temp}:`, error);

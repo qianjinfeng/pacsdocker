@@ -2,9 +2,9 @@
 name: mydicomapp
 
 services:
-  scu:
-    build: ./scu
-    container_name: node-scu
+  scp:
+    build: ./scp
+    container_name: node-scp
     networks:
       - dicom-network
     ports:
@@ -25,10 +25,10 @@ services:
       - IPFS_HOST=ipfs
       - IPFS_PORT=5001
   
-  consumer:
+  converter:
     build: 
-      context: ./consumer
-    container_name: node-consumer
+      context: ./converter
+    container_name: node-converter
     networks:
       - dicom-network
     depends_on:
