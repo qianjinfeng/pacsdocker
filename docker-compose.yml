@@ -38,9 +38,6 @@ services:
       elasticsearch:
         condition: service_healthy
         restart: true
-      ipfs:
-        condition: service_healthy
-        restart: true
     environment:
       - NODE_ENV=development
       - RABBITMQ_HOST=rabbitmq
@@ -148,8 +145,8 @@ services:
           "CMD-SHELL",
           "curl --output /dev/null --silent --head --fail -u elastic:${ES_LOCAL_PASSWORD} http://elasticsearch:${ES_LOCAL_PORT}",
         ]
-      interval: 5s
-      timeout: 5s
+      interval: 15s
+      timeout: 15s
       retries: 10
     entrypoint:
       - bash
