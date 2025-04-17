@@ -2,6 +2,16 @@
 name: mydicomapp
 
 services:
+  upload:
+    build: ./upload
+    container_name: node-upload
+    networks:
+      - dicom-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+        restart: true
+
   scp:
     build: ./scp
     container_name: node-scp
