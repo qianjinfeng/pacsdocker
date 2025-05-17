@@ -21,3 +21,11 @@ curl -s -u "elastic:elastic" -X POST http://localhost:9201/_security/user/kibana
 
 problem in load image
 http://127.0.0.1:8081/ipfs/QmXHrmVKW8NHxDiptGMpDuom9HMvQxP9MS2Y71mCePKK6i
+
+
+ipfs failed to boot 
+chmod a+x ./config/ipfs/001.sh
+chmod a+r ./config/ipfs/001.sh
+
+es failed to boot
+chown -R 1000:1000 ./volumes/elasticsearch-data
