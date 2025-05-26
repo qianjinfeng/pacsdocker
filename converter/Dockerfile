@@ -4,7 +4,7 @@ FROM node:20.18-alpine
 WORKDIR /usr/src/app
 
 # 设置环境变量为生产环境，默认情况下
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 # 创建非root用户 'node'
 # RUN addgroup --system node \
