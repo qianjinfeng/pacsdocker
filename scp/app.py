@@ -1,5 +1,5 @@
 import os
-from pynetdicom import AE, evt, AllStoragePresentationContexts, ALL_TRANSFER_SYNTAXES
+from pynetdicom import AE, debug_logger, evt, AllStoragePresentationContexts, ALL_TRANSFER_SYNTAXES
 from pynetdicom.sop_class import Verification
 import pydicom
 from pydicom.tag import Tag
@@ -17,6 +17,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
 RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
 RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
+RABBITMQ_PORT = os.getenv('RABBITMQ_PORT', '5673')
 RABBITMQ_QUEUE = os.getenv('RABBITMQ_QUEUE', 'dicom_queue')
 IPFS_HOST = os.getenv('IPFS_HOST', '127.0.0.1')
 IPFS_PORT = os.getenv('IPFS_PORT', '5001')
@@ -24,10 +25,12 @@ AE_TITLE = os.getenv('AE_TITLE', 'MY_STORE_SCU')
 
 # 设置RabbitMQ连接
 credentials = PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
-parameters = ConnectionParameters(heartbeat=0, host=RABBITMQ_HOST, credentials=credentials)
+parameters = ConnectionParameters(heartbeat=0, host=RABBITMQ_HOST, port=RABBITMQ_PORT, credentials=credentials)
 rabbitmq_connection = BlockingConnection(parameters)
 rabbitmq_channel = rabbitmq_connection.channel()
 rabbitmq_channel.queue_declare(queue=RABBITMQ_QUEUE, auto_delete=True)
+
+# debug_logger()
 
 class MyStorage(object):
 
@@ -54,7 +57,7 @@ class MyStorage(object):
         while not self.rabbitmq_connection or self.rabbitmq_connection.is_closed:
             try:
                 credentials = PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
-                parameters = ConnectionParameters(heartbeat=0, host=RABBITMQ_HOST, credentials=credentials)
+                parameters = ConnectionParameters(heartbeat=0, host=RABBITMQ_HOST, port=RABBITMQ_PORT, credentials=credentials)
                 self.rabbitmq_connection = BlockingConnection(parameters)
                 self.rabbitmq_channel = self.rabbitmq_connection.channel()
                 self.rabbitmq_channel.queue_declare(queue=RABBITMQ_QUEUE, auto_delete=True)
@@ -71,20 +74,79 @@ class MyStorage(object):
         if data_element.VR in ['OB', 'OD', 'OF', 'OL', 'OV', 'OW']:
             file_name = f'{data_element.tag:08x}'  # 将tag转换为十六进制字符串
             if data_element.tag == pydicom.tag.Tag(0x7fe0, 0x0010):
-                frames = generate_pixel_data_frame(data_element.value);
-                # 逐项处理每个 bytes 对象
-                for chunk in frames:
-                    # 处理每个 chunk（bytes 对象）
-                    print(f"frame size; {len(chunk)}")
-                    # 准备POST请求的数据
-                    files = {'file': (file_name, chunk)}
+                frames = []
+                if self.transfer_syntax_uid in [pydicom.uid.ExplicitVRLittleEndian, pydicom.uid.ImplicitVRLittleEndian]:
+                    # 处理未压缩的像素数据
+                    if self.number_of_frames > 1:
+                        # 计算每帧大小并分割数据
+                        rows = self.current_ds.Rows
+                        columns = self.current_ds.Columns
+                        samples_per_pixel = self.current_ds.SamplesPerPixel
+                        bits_allocated = self.current_ds.BitsAllocated
+                        bytes_per_pixel = ((bits_allocated + 7) // 8) * samples_per_pixel
+                        frame_size = rows * columns * bytes_per_pixel
+                        
+                        frames = [data_element.value[i:i+frame_size] for i in range(0, len(data_element.value), frame_size)]
+                    else:
+                        frames = [data_element.value]
+                else:
+                    # 处理压缩的像素数据
+                    from pydicom.encaps import generate_pixel_data_frame
+                    frames = list(generate_pixel_data_frame(data_element.value))
+
+                # multiframe
+                if len(frames) > 1:
+                    files = []
+                    for i, chunk in enumerate(frames):
+                        file_name = f'{data_element.tag:08x}/frames/{i}'
+                        files.append(('path', (file_name, chunk)))
+
+                    params = {'recursive': True}
+                    try:
+                        response = requests.post(self.api_url, files=files)
+                        response.raise_for_status()
+                    except Exception as e:
+                        print(f"Failed to store DICOM pixel to API: {e}")
+                        return None
                     
+                    if response.status_code == 200:
+                        cid_info = {}
+                        responses = response.text.split('\n')[:-1]  # 分割成单独的JSON对象
+                        for resp in responses:
+                            item = json.loads(resp)
+                            print(f"item: {item}")
+                            cid_info[item.get('Name')] = item.get('Hash')
+
+                        # 获取顶层目录的CID
+                        top_dir_cid = cid_info.get(f'{data_element.tag:08x}')
+                        if top_dir_cid is not None:
+                            print(f"Top directory CID: {top_dir_cid}")
+                            return top_dir_cid
+                        else:
+                            print("Top directory CID not found.")
+                            return None
+                    else:
+                        print(f'Error adding BulkData to API: {response.status_code} - {response.text}')
+                        return None
+                # only 1 image
+                else:
+                    files = {'file': (file_name, frames[0])}
                     try:
                         # 发送POST请求
                         response = requests.post(self.api_url, files=files)
                         response.raise_for_status()  # 抛出HTTP错误
                     except Exception as e:
-                        print(f"Failed to store DICOM pixel to IPFS: {e}")
+                        print(f"Failed to store DICOM other than pixel to IPFS: {e}")
+
+                    # 检查响应状态码
+                    if response.status_code == 200:
+                        result = response.json()
+                        print(f'BulkData added to IPFS: {result["Hash"]}')
+                        return result['Hash']
+                    else:
+                        print(f'Error adding BulkData to IPFS: {response.status_code} - {response.text}')
+
+            # 如果不是PixelData，则直接上传
             else:
                 files = {'file': (file_name, data_element.value)}
                 try:
@@ -94,13 +156,13 @@ class MyStorage(object):
                 except Exception as e:
                     print(f"Failed to store DICOM other than pixel to IPFS: {e}")
 
-            # 检查响应状态码
-            if response.status_code == 200:
-                result = response.json()
-                print(f'BulkData added to IPFS: {result["Hash"]}')
-                return result['Hash']
-            else:
-                print(f'Error adding BulkData to IPFS: {response.status_code} - {response.text}')
+                # 检查响应状态码
+                if response.status_code == 200:
+                    result = response.json()
+                    print(f'BulkData added to IPFS: {result["Hash"]}')
+                    return result['Hash']
+                else:
+                    print(f'Error adding BulkData to IPFS: {response.status_code} - {response.text}')
 
         else:
             logging.warning(f"Unsupported VR: {data_element.VR}")
@@ -129,6 +191,8 @@ class MyStorage(object):
                 
             self.currentSOPinstanceUID = ds['SOPInstanceUID'].value
             self.instanceNR = ds['InstanceNumber'].value
+            self.transfer_syntax_uid = ds.file_meta.TransferSyntaxUID
+            self.number_of_frames = int(getattr(ds, 'NumberOfFrames', 1))  # 获取帧数，默认为1
 
             ds_dict = ds.to_json_dict(512, bulk_data_element_handler=self.bulk_data_handler)
             meta_dict = ds.file_meta.to_json_dict()
