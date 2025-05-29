@@ -2,15 +2,17 @@
 name: mydicomapp
 
 services:
-  upload:
-    build: ./upload
-    container_name: node-upload
-    networks:
-      - dicom-network
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-        restart: true
+  # upload:
+  #   build: ./upload
+  #   container_name: node-upload
+  #   networks:
+  #     - dicom-network
+  #   depends_on:
+  #     elasticsearch:
+  #       condition: service_healthy
+  #       restart: true
+  #     scp:
+  #       condition: service_healthy
 
   scp:
     build: ./scp
@@ -34,6 +36,12 @@ services:
       - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
       - IPFS_HOST=ipfs
       - IPFS_PORT=5001
+    healthcheck:
+      test: ["CMD", "sh", "-c", "echo 'Checking if SCP is ready' && exit 0"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 50s
   
   converter:
     build: 
@@ -91,7 +99,7 @@ services:
       - "5673:5672"
       - "15673:15672"
     volumes:
-      - ./volumes/rabbitmq-data:/var/lib/rabbitmq
+      - rdata:/var/lib/rabbitmq
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
@@ -112,7 +120,7 @@ services:
       - "4002:4001"
     volumes:
       - ./config/ipfs/001.sh:/container-init.d/001.sh
-      - ./volumes/ipfs-data:/data/ipfs
+      - idata:/data/ipfs
       - ./config/ipfs/swarm.key:/data/ipfs/swarm.key
     environment:
       - IPFS_PROFILE=server
@@ -153,11 +161,12 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl --output /dev/null --silent --head --fail -u elastic:${ES_LOCAL_PASSWORD} http://elasticsearch:${ES_LOCAL_PORT}",
+          "curl -s -u elastic:${ES_LOCAL_PASSWORD} http://elasticsearch:${ES_LOCAL_PORT}/_cluster/health?pretty | grep '\"status\" : \"green\"'"
         ]
       interval: 15s
       timeout: 15s
       retries: 10
+      start_period: 180s
     entrypoint:
       - bash
       - -c
@@ -167,5 +176,8 @@ services:
 
 volumes:
   edata:
+  idata:
+  rdata:
+
 networks:
   dicom-network:

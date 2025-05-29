@@ -1,5 +1,6 @@
 
 // 定义索引映射
+//number_of_replicas fix no_shard_available_action_exception as only 1 es node
 const indexMappings = {
   study_template: {
       index_patterns: [ "study" ],

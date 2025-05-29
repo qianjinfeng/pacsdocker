@@ -11,11 +11,12 @@ const client = new Client({
 
 export async function checkDocumentExists(indexName, docId) {
   try {
-    const response = await client.get({
+    const response = await client.exists({
       index: indexName,
       id: docId
     });
-    return response.found;
+    log.info(response);
+    return response.statusCode === 200;
   } catch (error) {
     if (error.meta.statusCode === 404 || error.meta.body.status === 404) {
       return false;
@@ -62,7 +63,7 @@ export async function setupIndicesAndPipelines() {
         }
     }
   // 定义索引映射和管道逻辑
-  // Setup Template
+  // Delete Template
   for (const temp of indicesTemplates) {
     try {
         await client.indices.deleteIndexTemplate({
@@ -70,14 +71,14 @@ export async function setupIndicesAndPipelines() {
         });
         log.info(`Template ${temp} mapping deleted.`);
     } catch (error) {
-      if (error.meta.statusCode === 400 ) {
+      if (error.meta.statusCode === 404 ) {
         log.info(`Template ${temp} does not exists.`);
       } else {
         log.error(`Error creating Template ${temp}:`, error);
       }
     }
   }
-
+  // Create Template
   for (const temp of indicesTemplates) {
     try {
       log.info(`Template ${indexMappings[temp].properties} mapping created.`);

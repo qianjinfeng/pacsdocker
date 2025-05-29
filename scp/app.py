@@ -73,9 +73,11 @@ class MyStorage(object):
     def bulk_data_handler(self, data_element):
         if data_element.VR in ['OB', 'OD', 'OF', 'OL', 'OV', 'OW']:
             file_name = f'{data_element.tag:08x}'  # 将tag转换为十六进制字符串
+            logging.info(f'tag is: {file_name}')
             if data_element.tag == pydicom.tag.Tag(0x7fe0, 0x0010):
                 frames = []
                 if self.transfer_syntax_uid in [pydicom.uid.ExplicitVRLittleEndian, pydicom.uid.ImplicitVRLittleEndian]:
+                    logging.info("Transfer Syntax simple")
                     # 处理未压缩的像素数据
                     if self.number_of_frames > 1:
                         # 计算每帧大小并分割数据
@@ -90,15 +92,17 @@ class MyStorage(object):
                     else:
                         frames = [data_element.value]
                 else:
+                    logging.info("Transfer Syntax compressed")
                     # 处理压缩的像素数据
                     from pydicom.encaps import generate_pixel_data_frame
                     frames = list(generate_pixel_data_frame(data_element.value))
 
                 # multiframe
                 if len(frames) > 1:
+                    logging.info(f"Multiple frames: {len(frames)}")
                     files = []
                     for i, chunk in enumerate(frames):
-                        file_name = f'{data_element.tag:08x}/frames/{i}'
+                        file_name = f'{data_element.tag:08x}/frames/{i+1}'
                         files.append(('path', (file_name, chunk)))
 
                     params = {'recursive': True}
@@ -106,7 +110,7 @@ class MyStorage(object):
                         response = requests.post(self.api_url, files=files)
                         response.raise_for_status()
                     except Exception as e:
-                        print(f"Failed to store DICOM pixel to API: {e}")
+                        logging.error(f"Failed to store DICOM pixel to API: {e}")
                         return None
                     
                     if response.status_code == 200:
@@ -114,55 +118,57 @@ class MyStorage(object):
                         responses = response.text.split('\n')[:-1]  # 分割成单独的JSON对象
                         for resp in responses:
                             item = json.loads(resp)
-                            print(f"item: {item}")
+                            logging.info(f"item: {item}")
                             cid_info[item.get('Name')] = item.get('Hash')
 
                         # 获取顶层目录的CID
                         top_dir_cid = cid_info.get(f'{data_element.tag:08x}')
                         if top_dir_cid is not None:
-                            print(f"Top directory CID: {top_dir_cid}")
+                            logging.info(f"Top directory CID: {top_dir_cid}")
                             return top_dir_cid
                         else:
-                            print("Top directory CID not found.")
+                            logging.warning("Top directory CID not found.")
                             return None
                     else:
-                        print(f'Error adding BulkData to API: {response.status_code} - {response.text}')
+                        logging.warning(f'Error adding BulkData to API: {response.status_code} - {response.text}')
                         return None
                 # only 1 image
                 else:
+                    logging.info("Single frames")
                     files = {'file': (file_name, frames[0])}
                     try:
                         # 发送POST请求
                         response = requests.post(self.api_url, files=files)
                         response.raise_for_status()  # 抛出HTTP错误
                     except Exception as e:
-                        print(f"Failed to store DICOM other than pixel to IPFS: {e}")
+                        logging.error(f"Failed to store DICOM other than pixel to IPFS: {e}")
 
                     # 检查响应状态码
                     if response.status_code == 200:
                         result = response.json()
-                        print(f'BulkData added to IPFS: {result["Hash"]}')
+                        logging.info(f'Single Frame Image added to IPFS: {result["Hash"]}')
                         return result['Hash']
                     else:
-                        print(f'Error adding BulkData to IPFS: {response.status_code} - {response.text}')
+                        logging.warning(f'Error adding BulkData to IPFS: {response.status_code} - {response.text}')
 
             # 如果不是PixelData，则直接上传
             else:
+                logging.info("upload none pixel data")
                 files = {'file': (file_name, data_element.value)}
                 try:
                     # 发送POST请求
                     response = requests.post(self.api_url, files=files)
                     response.raise_for_status()  # 抛出HTTP错误
                 except Exception as e:
-                    print(f"Failed to store DICOM other than pixel to IPFS: {e}")
+                    logging.error(f"Failed to store DICOM other than pixel to IPFS: {e}")
 
                 # 检查响应状态码
                 if response.status_code == 200:
                     result = response.json()
-                    print(f'BulkData added to IPFS: {result["Hash"]}')
+                    logging.info(f'BulkData added to IPFS: {result["Hash"]}')
                     return result['Hash']
                 else:
-                    print(f'Error adding BulkData to IPFS: {response.status_code} - {response.text}')
+                    logging.warning(f'Error adding BulkData to IPFS: {response.status_code} - {response.text}')
 
         else:
             logging.warning(f"Unsupported VR: {data_element.VR}")
@@ -176,17 +182,17 @@ class MyStorage(object):
 
             # 检查并设置PatientSex默认值
             if 'PatientSex' not in ds or not ds.PatientSex:
-                print("Setting default value for PatientSex.")
+                logging.warning("Setting default value for PatientSex.")
                 ds.PatientSex = 'O'  # 设置默认值为 'O' (Other)
 
             # 检查并设置StudyID默认值
             if 'StudyID' not in ds or not ds.StudyID:
-                print("Setting default value for StudyID.")
+                logging.warning("Setting default value for StudyID.")
                 ds.StudyID = 'NOID'  # 设置默认值
             
             # 检查并设置PatientID默认值
             if 'PatientID' not in ds or not ds.PatientID:
-                print("Setting default value for PatientID.")
+                logging.warning("Setting default value for PatientID.")
                 ds.StudyID = 'NOID'  # 设置默认值
                 
             self.currentSOPinstanceUID = ds['SOPInstanceUID'].value

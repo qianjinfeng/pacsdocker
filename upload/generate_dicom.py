@@ -8,6 +8,25 @@ from faker import Faker
 # 初始化Faker实例用于生成随机中文名字
 fake = Faker('zh_CN')
 
+def generate_anatomical_image(shape=(128, 128)):
+    image = np.zeros(shape, dtype='int16')
+
+    # 空气区域（背景）
+    air = -1000
+    image[:] = air
+
+    # 中心区域模拟软组织
+    center = np.s_[(shape[0]//4):-(shape[0]//4), (shape[1]//4):-(shape[1]//4)]
+    muscle = np.random.randint(40, 80, size=(shape[0]//2, shape[1]//2), dtype='int16')
+    image[center] = muscle
+
+    # 添加一个高密度区域模拟骨骼
+    bone_zone = np.s_[(shape[0]//2)-10:(shape[0]//2)+10, (shape[1]//2)-10:(shape[1]//2)+10]
+    image[bone_zone] = np.random.randint(1000, 1500, size=(20, 20), dtype='int16')
+
+    return image
+
+
 def generate_dicom_files(output_dir, num_files=100):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -20,7 +39,7 @@ def generate_dicom_files(output_dir, num_files=100):
         file_meta.ImplementationClassUID = '1.3.6.1.4.1.9590.100.1.0.100.4.0'
         file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
 
-        dt = datetime.datetime.now()
+        dt = fake.date_time()
         date_str = dt.strftime('%Y%m%d')
         time_str = dt.strftime('%H%M%S.%f')
 
@@ -28,7 +47,7 @@ def generate_dicom_files(output_dir, num_files=100):
         ds = FileDataset(filename, {}, file_meta=file_meta, preamble=b"\0" * 128)
 
         # 添加必要的标签
-        ds.SpecificCharacterSet = 'GB18030'  # 支持中文字符集
+        ds.SpecificCharacterSet = 'ISO_IR 192'  # 支持中文字符集GB18030
         ds.InstanceCreationDate = date_str
         ds.InstanceCreationTime = time_str
         ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
@@ -52,12 +71,13 @@ def generate_dicom_files(output_dir, num_files=100):
         ds.PatientName = patient_name
 
         # 添加随机生成的Access ID
-        access_id = fake.uuid4()[:16]
+        access_id = fake.uuid4()[:10]
         ds.AccessionNumber = access_id
 
         ds.PatientID = f'ID{i+1:06d}'
-        ds.PatientBirthDate = '19900101'
-        ds.PatientSex = 'M'
+        bd = fake.date_time()
+        ds.PatientBirthDate = bd.strftime('%Y%m%d')
+        ds.PatientSex = fake.random_element(elements=('M', 'F'))
         ds.StudyInstanceUID = pydicom.uid.generate_uid()
         ds.SeriesInstanceUID = pydicom.uid.generate_uid()
         ds.StudyID = 'StudyID'
@@ -66,15 +86,29 @@ def generate_dicom_files(output_dir, num_files=100):
         ds.AcquisitionNumber = str(i+1)
 
         # 创建一些随机数据作为图像数据
-        shape = (128, 128)  # 定义图像大小
-        image = np.random.randint(0, 256, size=shape, dtype='uint16')  # 随机生成像素值
+        # 图像相关信息
+        shape = (128, 128)
+        image = generate_anatomical_image((128, 128))
 
-        # 设置像素表示和存储格式
+        ds.Rows = shape[0]
+        ds.Columns = shape[1]
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PixelSpacing = [1.0, 1.0]
+        ds.ImagePositionPatient = [0.0, 0.0, 0]
+        ds.SliceLocation = float(i)
         ds.BitsAllocated = 16
         ds.BitsStored = 16
         ds.HighBit = 15
-        ds.PixelRepresentation = 0
+        ds.PixelRepresentation = 1
+
         ds.PixelData = image.tobytes()
+
+        # 添加窗宽窗位等显示参数
+        ds.WindowCenter = 40
+        ds.WindowWidth = 400
+        ds.RescaleIntercept = 0
+        ds.RescaleSlope = 1
 
         # 保存到文件
         ds.save_as(filename)
