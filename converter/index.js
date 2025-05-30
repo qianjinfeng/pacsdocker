@@ -28,7 +28,6 @@ export async function consumeMessages(channel, callback) {
       } catch (error) {
         channel.nack(msg, false, true);
         log.error('Error processing DICOM message:', error);
-        throw error;
       }
     }, {
       noAck: false

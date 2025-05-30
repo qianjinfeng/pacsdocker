@@ -3,11 +3,11 @@ dotenv.config();
 
 const config = {
   rabbitmq: {
-    url: process.env.RABBITMQ_URL || 'amqp://localhost',
+    url: process.env.RABBITMQ_URL || 'amqp://localhost:5673',
     queue: process.env.RABBITMQ_QUEUE || 'dicom_queue'
   },
   elasticsearch: {
-    node: process.env.ELASTICSEARCH_NODE || 'http://localhost:9200',
+    node: process.env.ELASTICSEARCH_NODE || 'http://localhost:9201',
     auth: {
       username: process.env.ELASTICSEARCH_USER || 'elastic',
       password: process.env.ELASTICSEARCH_PASS || 'elastic'

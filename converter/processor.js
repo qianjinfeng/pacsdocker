@@ -28,7 +28,19 @@ export async function processDicomMessage(dataset) {
           }
         }
       }
-  
+
+      // 工具函数：用于字段回退
+      function fallbackSeriesField(targetTag, sourceTag) {
+        log.info(`fill ${targetTag} with ${sourceTag}`);
+        if (!dataset[targetTag] && dataset[sourceTag]) {
+          extracted[targetTag] = { ...extracted[sourceTag] };
+        }
+      }
+      if (indexName === 'series') {
+        // 回退逻辑
+        fallbackSeriesField('00080021', '00080020'); // SeriesDate <- StudyDate
+        fallbackSeriesField('00080031', '00080030'); // SeriesTime <- StudyTime
+      }
       const naturalizedSet = naturalizeDataset(extracted);
       log.debug(JSON.stringify(naturalizedSet));
       if (indexName === 'study') {
@@ -39,8 +51,6 @@ export async function processDicomMessage(dataset) {
       if (!exists) {
         removeVrMap(naturalizedSet);
         await indexDocument(indexName, naturalizedSet[idField], naturalizedSet, timestampField);
-        log.info(
-          `${indexName} document created`);
       }
     };
 
@@ -59,6 +69,14 @@ export async function processDicomMessage(dataset) {
         }
       });
   
+      function fallbackInstanceField(targetTag, sourceTag) {
+        log.info(`fill ${targetTag} with ${sourceTag}`);
+        if (!dataset[targetTag] && dataset[sourceTag]) {
+          dataset[targetTag] = { ...dataset[sourceTag] };
+        }
+      }
+      fallbackInstanceField('00080022', '00080020'); // AcquisitionDate <- StudyDate
+      fallbackInstanceField('00080032', '00080030'); // AcquisitionTime <- StudyTime
       const instanceSet = naturalizeDataset(dataset);
       removeVrMap(instanceSet);
       log.debug(JSON.stringify(instanceSet));
@@ -72,9 +90,11 @@ export async function processDicomMessage(dataset) {
           await indexDocument('siemens', siemensSet.SOPInstanceUID, siemensSet);
         }
       }
-  
-      await indexDocument('instance', instanceSet.SOPInstanceUID, instanceSet, 'timestamp_instance');
-      log.info("instance document created");
+      
+      const exists = await checkDocumentExists('instance', instanceSet.SOPInstanceUID);
+      if (!exists) {
+        await indexDocument('instance', instanceSet.SOPInstanceUID, instanceSet, 'timestamp_instance');
+      }
     } catch (error) {
       log.error('Error processing DICOM message:', error);
       throw error;

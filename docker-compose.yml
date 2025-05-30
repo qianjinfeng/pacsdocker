@@ -11,7 +11,7 @@ services:
   #     elasticsearch:
   #       condition: service_healthy
   #       restart: true
-  #     scp:
+  #     converter:
   #       condition: service_healthy
 
   scp:
@@ -69,6 +69,12 @@ services:
       - ELASTICSEARCH_USER=${ES_LOCAL_USER}
       - ELASTICSEARCH_PASS=${ES_LOCAL_PASSWORD}
       - ELASTICSEARCH_NODE=http://elasticsearch:${ES_LOCAL_PORT}
+    healthcheck:
+      test: ["CMD", "sh", "-c", "echo 'Checking if SCP is ready' && exit 0"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 50s
 
   web:
     build: 
@@ -161,7 +167,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -s -u elastic:${ES_LOCAL_PASSWORD} http://elasticsearch:${ES_LOCAL_PORT}/_cluster/health?pretty | grep '\"status\" : \"green\"'"
+          "curl --output /dev/null --silent --head --fail -u elastic:${ES_LOCAL_PASSWORD} http://elasticsearch:${ES_LOCAL_PORT}"
         ]
       interval: 15s
       timeout: 15s

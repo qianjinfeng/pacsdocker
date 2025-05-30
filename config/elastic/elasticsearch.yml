@@ -1,4 +1,7 @@
-cluster.name: "docker-cluster"
+cluster.name: "docker-cluster" # 自定义集群名称
+node.name: "single-node" # 自定义节点名称
+# 单节点发现设置，避免节点自己尝试组成集群
+discovery.type: single-node
 network.host: 0.0.0.0
 cluster.routing.allocation.enable: primaries
 http.cors.allow-origin: "*"

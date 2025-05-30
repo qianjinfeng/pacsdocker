@@ -35,7 +35,7 @@ export async function indexDocument(index, documentId, body, pipeline = null) {
       body,
       ...(pipeline ? { pipeline } : {})
     });
-    log.info(`Indexed document with ID ${documentId}: ${response.result}`);
+    log.info(`${index} new document with ID ${documentId}: ${response.result}`);
   } catch (error) {
     log.error('Error indexing document', error);
     if (error.meta && error.meta.body && error.meta.body.error) {

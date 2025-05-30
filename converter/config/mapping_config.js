@@ -5,6 +5,8 @@ const indexMappings = {
   study_template: {
       index_patterns: [ "study" ],
       settings: {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
         "analysis": {
             "filter": {
                 "pinyin": {
@@ -83,6 +85,10 @@ const indexMappings = {
     },
     series_template: {
       index_patterns: [ "series" ],
+      settings: {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+      },
       properties: {
         "StudyInstanceUID": {
           "type": "keyword"
@@ -94,25 +100,26 @@ const indexMappings = {
           "type": "keyword"
         }
       }
-    }
-    // instances: {
-    //   properties: {
-    //     instanceID: { type: 'keyword' },
-    //     status: { type: 'text' },
-    //     // ... 其他instance相关的字段
-    //   }
-    // },
-    // siemens: {
-    //   properties: {
-    //     // 假设siemens有特定的映射
-    //     model: { type: 'text' },
-    //     serialNumber: { type: 'keyword' },
-    //     // ... 其他siemens相关的字段
-    //   }
-    // }
+    },
+    instance_template: {
+      index_patterns: [ "instance" ],
+      settings: {
+          "number_of_shards": 1,
+          "number_of_replicas": 0,
+      },
+      properties:{}
+    },
+    siemens_template: {
+      index_patterns: [ "siemens" ],
+      settings: {
+          "number_of_shards": 1,
+          "number_of_replicas": 0,
+      },
+      properties:{}
+    },
   };
    
   // 索引名称数组
-  const indicesTemplates = ['study_template', 'series_template'];
+  const indicesTemplates = ['study_template', 'series_template', 'instance_template', 'siemens_template'];
 
   export { indexMappings, indicesTemplates };
