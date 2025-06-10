@@ -11,4 +11,4 @@ COPY generate_dicom.py .
 COPY data ./data
 
 # 运行生成DICOM文件的脚本，并使用pynetdicom上传这些文件
-CMD ["sh", "-c", "python3 generate_dicom.py && python3 -m pynetdicom storescu scp 11112 ./data/ -v -r -cx && tail -f /dev/null"]
+CMD ["sh", "-c", "python3 generate_dicom.py && sleep 5 && python3 -m pynetdicom storescu scp 11112 ./data/ -v -r -cx && tail -f /dev/null"]

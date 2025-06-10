@@ -2,17 +2,17 @@
 name: mydicomapp
 
 services:
-  # upload:
-  #   build: ./upload
-  #   container_name: node-upload
-  #   networks:
-  #     - dicom-network
-  #   depends_on:
-  #     elasticsearch:
-  #       condition: service_healthy
-  #       restart: true
-  #     converter:
-  #       condition: service_healthy
+  upload:
+    build: ./upload
+    container_name: node-upload
+    networks:
+      - dicom-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+        restart: true
+      converter:
+        condition: service_healthy
 
   scp:
     build: ./scp
@@ -167,7 +167,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl --output /dev/null --silent --head --fail -u elastic:${ES_LOCAL_PASSWORD} http://elasticsearch:${ES_LOCAL_PORT}"
+          "curl -s -u elastic:${ES_LOCAL_PASSWORD} http://elasticsearch:${ES_LOCAL_PORT}/_cluster/health?pretty | grep '\"status\" : \"green\"'"
         ]
       interval: 15s
       timeout: 15s
