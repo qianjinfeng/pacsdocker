@@ -24,6 +24,55 @@ test via web
 curl http://localhost:4004/studies
 
 
+# Viewer
+## code
+sync master to OHIF Viwers
+checkout usingipfs branch
+git merge master
+yarn config set workspaces-experimental true
+yarn install
+yarn run dev 
+
+## Port changes
+
+Viewers/extensions/default/src/DicomIPFSDataSource/getImageId.js
+let imageId = 'ipfs:http://127.0.0.1:8081/ipfs/'
+
+Viewers/platform/app/public/config/default.js
+        name: 'ipfs',
+        wadoUriRoot: 'http://localhost:4004',
+        qidoRoot: 'http://127.0.0.1:4004',
+        wadoRoot: 'http://localhost:4004',
+
+Viewers/platform/app/src/routes/Search/Searching.tsx
+const connector = new ElasticsearchAPIConnector({
+  host: "http://localhost:9201",
+  index: "study",
+  apiKey: "ZWxhc3RpYzplbGFzdGlj"
+});
+
+## API key 
+echo -n 'elastic:your_password' | base64
+
+/_security/api_key 是 Elasticsearch 商业功能（Security/X-Pack）的一部分
+curl -X POST "http://localhost:9201/_security/api_key" \
+  -H "Content-Type: application/json" \
+  -u elastic \
+  -d '{
+    "name": "my_api_key_for_frontend",
+    "role_descriptors": {
+      "my_role": {
+        "cluster": ["monitor"],
+        "index": [
+          {
+            "names": ["study"],
+            "privileges": ["read"]
+          }
+        ]
+      }
+    }
+}'
+
 elasticsearch-plugin install https://release.infinilabs.com/analysis-pinyin/stable/elasticsearch-analysis-pinyin-8.15.3.zip
 
 curl -s -u "elastic:elastic" -X POST http://localhost:9201/_security/user/kibana_system/_password -d "{\"password\":\"'${KIBANA_LOCAL_PASSWORD}'\"}" -H "Content-Type: application/json"
