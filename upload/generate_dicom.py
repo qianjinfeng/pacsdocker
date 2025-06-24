@@ -116,5 +116,5 @@ def generate_dicom_files(output_dir, num_files=100):
 
 if __name__ == '__main__':
     output_directory = './data'
-    number_of_files = 5  # 根据需要调整这个数字
+    number_of_files = 200  # 根据需要调整这个数字
     generate_dicom_files(output_directory, number_of_files)

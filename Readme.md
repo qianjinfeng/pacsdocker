@@ -26,12 +26,20 @@ curl http://localhost:4004/studies
 
 # Viewer
 ## code
+yarn config set workspaces-experimental true
 sync master to OHIF Viwers
 checkout usingipfs branch
-git merge master
-yarn config set workspaces-experimental true
+ git checkout -t origin/usingipfs
+
+ git merge master 
+ git checkout --theirs platform/app/package.json
+ git checkout --theirs yarn.lock
+ cd plantform/app
+ yarn add @elastic/search-ui-elasticsearch-connector
+ yarn add @elastic/react-search-ui
+ 
 yarn install
-yarn run dev 
+
 
 ## Port changes
 
@@ -50,6 +58,8 @@ const connector = new ElasticsearchAPIConnector({
   index: "study",
   apiKey: "ZWxhc3RpYzplbGFzdGlj"
 });
+
+yarn run dev 
 
 ## API key 
 echo -n 'elastic:your_password' | base64
