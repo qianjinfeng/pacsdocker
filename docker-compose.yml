@@ -13,6 +13,9 @@ services:
         restart: true
       converter:
         condition: service_healthy
+    environment:
+      - LOG_LEVEL=info
+      - NUMBER_OF_FILES=5
 
   scp:
     build: ./scp
@@ -29,6 +32,7 @@ services:
         condition: service_healthy
         restart: true
     environment:
+      - LOG_LEVEL=info
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=${RABBITMQ_PORT}
       - RABBITMQ_USER=${RABBITMQ_USER}
@@ -37,7 +41,7 @@ services:
       - IPFS_HOST=ipfs
       - IPFS_PORT=5001
     healthcheck:
-      test: ["CMD", "sh", "-c", "echo 'Checking if SCP is ready' && exit 0"]
+      test: ["CMD", "sh", "-c", "echo 'Checking if scp is ready' && exit 0"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -57,6 +61,7 @@ services:
         condition: service_healthy
         restart: true
     environment:
+      - LOG_LEVEL=info
       - NODE_ENV=development
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_USER=${RABBITMQ_USER}
@@ -70,7 +75,7 @@ services:
       - ELASTICSEARCH_PASS=${ES_LOCAL_PASSWORD}
       - ELASTICSEARCH_NODE=http://elasticsearch:${ES_LOCAL_PORT}
     healthcheck:
-      test: ["CMD", "sh", "-c", "echo 'Checking if SCP is ready' && exit 0"]
+      test: ["CMD", "sh", "-c", "echo 'Checking if converter is ready' && exit 0"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -89,6 +94,7 @@ services:
         condition: service_healthy
         restart: true
     environment:
+      - LOGLEVEL=debug
       - NODE_ENV=development
       - ELASTICSEARCH_HOST=elasticsearch
       - ELASTICSEARCH_PORT=${ES_LOCAL_PORT}

@@ -2,13 +2,20 @@ import { createLogger, format, transports } from 'winston';
 
 const { combine, timestamp, json, simple } = format;
 
+// 从环境变量中获取日志级别，默认为 'info'
+const logLevel = process.env.LOG_LEVEL?.toLowerCase();
+
+// 验证是否是一个合法的日志级别
+const validLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'];
+const isValidLevel = validLevels.includes(logLevel || '');
+const effectiveLogLevel = isValidLevel ? logLevel : 'info';
+
 const log = createLogger({
-  level: 'info',
+  level: effectiveLogLevel,
   format: combine(
     timestamp(),
     json()
   ),
-  defaultMeta: { service: 'user-service' },
   transports: [
     // 写入所有重要级别为 `error` 或更高的日志到 `error.log`
     // 即，error, fatal，但不包括其他级别

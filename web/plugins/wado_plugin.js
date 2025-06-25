@@ -160,6 +160,7 @@ export default fp(async function (fastify, opts) {
           const size = parseInt(request.query.size) || 1000;
       
           const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
+          fastify.log.info(`found ${rawData.total} metadata`);
           for (let i = 0; i < rawData.hits.length; i++) {
             const study = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
             res.push(study);
@@ -187,6 +188,7 @@ export default fp(async function (fastify, opts) {
           const size = parseInt(request.query.size) || 100;
       
           const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
+          fastify.log.info(`found ${rawData.total} metadata`);
 
           for (let i = 0; i < rawData.hits.length; i++) {
             const series = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
@@ -217,6 +219,7 @@ export default fp(async function (fastify, opts) {
           const size = parseInt(request.query.size) || 100;
       
           const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
+          fastify.log.info(`found ${rawData.total} metadata`);
           rawData.hits.forEach((value) => {
             const study = DicomMetaDictionary.denaturalizeDataset(value);
             res.push(study);

@@ -4,6 +4,24 @@ import datetime
 import os
 import numpy as np
 from faker import Faker
+import logging
+
+# 映射环境变量值到 logging 级别
+LEVEL_MAP = {
+    'DEBUG': logging.DEBUG,
+    'INFO': logging.INFO,
+    'WARNING': logging.WARNING,
+    'ERROR': logging.ERROR,
+    'CRITICAL': logging.CRITICAL
+}
+
+# 从环境变量中获取日志级别，默认为 INFO
+log_level_name = os.getenv('LOG_LEVEL', 'INFO').upper()
+log_level = LEVEL_MAP.get(log_level_name, logging.INFO)
+
+# 配置日志
+logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
 
 # 初始化Faker实例用于生成随机中文名字
 fake = Faker('zh_CN')
@@ -112,9 +130,13 @@ def generate_dicom_files(output_dir, num_files=100):
 
         # 保存到文件
         ds.save_as(filename)
-        print(f'DICOM file {filename} created with Patient Name: {patient_name} and Accession Number: {access_id}.')
+        logger.info(f'DICOM file {filename} created with Patient Name: {patient_name} and Accession Number: {access_id}.')
 
 if __name__ == '__main__':
     output_directory = './data'
-    number_of_files = 200  # 根据需要调整这个数字
+    
+    # 从环境变量中获取文件数量，默认为 200
+    number_of_files = int(os.getenv('NUMBER_OF_FILES', '200'))
+
+    logger.info(f'Start to generate {number_of_files} dicoms')
     generate_dicom_files(output_directory, number_of_files)

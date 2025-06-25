@@ -15,7 +15,7 @@ export async function checkDocumentExists(indexName, docId) {
       index: indexName,
       id: docId
     });
-    log.info(response);
+    log.debug(response);
     return response.statusCode === 200;
   } catch (error) {
     if (error.meta.statusCode === 404 || error.meta.statusCode === 503 || error.meta.body.status === 404) {

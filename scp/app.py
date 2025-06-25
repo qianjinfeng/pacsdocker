@@ -5,13 +5,28 @@ import pydicom
 from pydicom.tag import Tag
 from pydicom.encaps import generate_pixel_data_frame
 from pika import ConnectionParameters, BlockingConnection, PlainCredentials
+from datetime import datetime
 import json
 import requests
 import logging
 import time
 
+# 映射环境变量值到 logging 级别
+LEVEL_MAP = {
+    'DEBUG': logging.DEBUG,
+    'INFO': logging.INFO,
+    'WARNING': logging.WARNING,
+    'ERROR': logging.ERROR,
+    'CRITICAL': logging.CRITICAL
+}
+
+# 从环境变量中获取日志级别，默认为 INFO
+log_level_name = os.getenv('LOG_LEVEL', 'INFO').upper()
+log_level = LEVEL_MAP.get(log_level_name, logging.INFO)
+
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
 
 # 获取环境变量
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
@@ -61,23 +76,23 @@ class MyStorage(object):
                 self.rabbitmq_connection = BlockingConnection(parameters)
                 self.rabbitmq_channel = self.rabbitmq_connection.channel()
                 self.rabbitmq_channel.queue_declare(queue=RABBITMQ_QUEUE, auto_delete=True)
-                logging.info("Connected to RabbitMQ.")
+                logger.info("Connected to RabbitMQ.")
             except Exception as e:
                 logging.error(f"Failed to connect to RabbitMQ: {e}. Retrying...")
                 time.sleep(5)
 
     def handle_echo(self, event):
-        logging.info("Received C-ECHO request")
+        logger.info("Received C-ECHO request")
         return 0x0000  # 返回状态码，0x0000表示成功
 
     def bulk_data_handler(self, data_element):
         if data_element.VR in ['OB', 'OD', 'OF', 'OL', 'OV', 'OW']:
             file_name = f'{data_element.tag:08x}'  # 将tag转换为十六进制字符串
-            logging.info(f'tag is: {file_name}')
+            logger.info(f'tag is: {file_name}')
             if data_element.tag == pydicom.tag.Tag(0x7fe0, 0x0010):
                 frames = []
                 if self.transfer_syntax_uid in [pydicom.uid.ExplicitVRLittleEndian, pydicom.uid.ImplicitVRLittleEndian]:
-                    logging.info("Transfer Syntax simple")
+                    logger.info("Transfer Syntax simple")
                     # 处理未压缩的像素数据
                     if self.number_of_frames > 1:
                         # 计算每帧大小并分割数据
@@ -92,14 +107,14 @@ class MyStorage(object):
                     else:
                         frames = [data_element.value]
                 else:
-                    logging.info("Transfer Syntax compressed")
+                    logger.info("Transfer Syntax compressed")
                     # 处理压缩的像素数据
                     from pydicom.encaps import generate_pixel_data_frame
                     frames = list(generate_pixel_data_frame(data_element.value))
 
                 # multiframe
                 if len(frames) > 1:
-                    logging.info(f"Multiple frames: {len(frames)}")
+                    logger.info(f"Multiple frames: {len(frames)}")
                     files = []
                     for i, chunk in enumerate(frames):
                         file_name = f'{data_element.tag:08x}/frames/{i+1}'
@@ -110,7 +125,7 @@ class MyStorage(object):
                         response = requests.post(self.api_url, files=files)
                         response.raise_for_status()
                     except Exception as e:
-                        logging.error(f"Failed to store DICOM pixel to API: {e}")
+                        logger.error(f"Failed to store DICOM pixel to API: {e}")
                         return None
                     
                     if response.status_code == 200:
@@ -118,82 +133,112 @@ class MyStorage(object):
                         responses = response.text.split('\n')[:-1]  # 分割成单独的JSON对象
                         for resp in responses:
                             item = json.loads(resp)
-                            logging.info(f"item: {item}")
+                            logger.debug(f"item: {item}")
                             cid_info[item.get('Name')] = item.get('Hash')
 
                         # 获取顶层目录的CID
                         top_dir_cid = cid_info.get(f'{data_element.tag:08x}')
                         if top_dir_cid is not None:
-                            logging.info(f"Top directory CID: {top_dir_cid}")
+                            logger.info(f"Multi Frames Image added to IPFS: {top_dir_cid}")
                             return top_dir_cid
                         else:
-                            logging.warning("Top directory CID not found.")
+                            logger.warning("Top directory CID not found.")
                             return None
                     else:
-                        logging.warning(f'Error adding BulkData to API: {response.status_code} - {response.text}')
+                        logger.warning(f'Error adding BulkData to API: {response.status_code} - {response.text}')
                         return None
                 # only 1 image
                 else:
-                    logging.info("Single frames")
+                    logger.info("Single frames")
                     files = {'file': (file_name, frames[0])}
                     try:
                         # 发送POST请求
                         response = requests.post(self.api_url, files=files)
                         response.raise_for_status()  # 抛出HTTP错误
                     except Exception as e:
-                        logging.error(f"Failed to store DICOM other than pixel to IPFS: {e}")
+                        logger.error(f"Failed to store DICOM other than pixel to IPFS: {e}")
 
                     # 检查响应状态码
                     if response.status_code == 200:
                         result = response.json()
-                        logging.info(f'Single Frame Image added to IPFS: {result["Hash"]}')
+                        logger.info(f'Single Frame Image added to IPFS: {result["Hash"]}')
                         return result['Hash']
                     else:
-                        logging.warning(f'Error adding BulkData to IPFS: {response.status_code} - {response.text}')
+                        logger.warning(f'Error adding BulkData to IPFS: {response.status_code} - {response.text}')
 
             # 如果不是PixelData，则直接上传
             else:
-                logging.info("upload none pixel data")
+                logger.info("upload other binary data than none pixel data")
                 files = {'file': (file_name, data_element.value)}
                 try:
                     # 发送POST请求
                     response = requests.post(self.api_url, files=files)
                     response.raise_for_status()  # 抛出HTTP错误
                 except Exception as e:
-                    logging.error(f"Failed to store DICOM other than pixel to IPFS: {e}")
+                    logger.error(f"Failed to store DICOM other than pixel to IPFS: {e}")
 
                 # 检查响应状态码
                 if response.status_code == 200:
                     result = response.json()
-                    logging.info(f'BulkData added to IPFS: {result["Hash"]}')
+                    logger.info(f'BulkData added to IPFS: {result["Hash"]}')
                     return result['Hash']
                 else:
-                    logging.warning(f'Error adding BulkData to IPFS: {response.status_code} - {response.text}')
+                    logger.warning(f'Error adding BulkData to IPFS: {response.status_code} - {response.text}')
 
         else:
-            logging.warning(f"Unsupported VR: {data_element.VR}")
+            logger.warning(f"Unsupported VR: {data_element.VR}")
             return data_element.value
 
+    def ensure_required_dicom_fields(self, ds):
+        """
+        确保 DICOM 数据集中包含必要的字段，若缺失则设置默认值。
+        
+        参数:
+            ds (pydicom.Dataset): 要检查并补充的 DICOM 数据集对象
+        
+        返回:
+            pydicom.Dataset: 补充后的数据集
+        """
+        # 检查并设置 PatientSex
+        if 'PatientSex' not in ds or not ds.PatientSex:
+            logger.warning("PatientSex is missing or empty. Setting default value to 'O'.")
+            ds.PatientSex = 'O'  # 默认值为 'O' (Other)
+
+        # 检查并设置 StudyID
+        if 'StudyID' not in ds or not ds.StudyID:
+            logger.warning("StudyID is missing or empty. Setting default value to 'NOID'.")
+            ds.StudyID = 'NOID'
+
+        # 检查并设置 PatientID
+        if 'PatientID' not in ds or not ds.PatientID:
+            logger.warning("PatientID is missing or empty. Setting default value to 'NOID'.")
+            ds.PatientID = 'NOID'  
+
+        # 获取当前日期和时间（DICOM 格式）
+        now = datetime.now()
+        current_date = now.strftime('%Y%m%d')     # YYYYMMDD
+        current_time = now.strftime('%H%M%S')     # HHMMSS
+
+        # 检查并设置 StudyDate
+        if 'StudyDate' not in ds or not ds.StudyDate:
+            logger.warning("StudyDate is missing or empty. Setting current date.")
+            ds.StudyDate = current_date
+
+        # 检查并设置 StudyTime
+        if 'StudyTime' not in ds or not ds.StudyTime:
+            logger.warning("StudyTime is missing or empty. Setting current time.")
+            ds.StudyTime = current_time
+
+        return ds
+        
     def handle_store(self, event):
         """Handle EVT_C_STORE events."""
         try:
             ds = event.dataset
             ds.file_meta = event.file_meta
 
-            # 检查并设置PatientSex默认值
-            if 'PatientSex' not in ds or not ds.PatientSex:
-                logging.warning("Setting default value for PatientSex.")
-                ds.PatientSex = 'O'  # 设置默认值为 'O' (Other)
-
-            # 检查并设置StudyID默认值
-            if 'StudyID' not in ds or not ds.StudyID:
-                logging.warning("Setting default value for StudyID.")
-                ds.StudyID = 'NOID'  # 设置默认值
-            
-            # 检查并设置PatientID默认值
-            if 'PatientID' not in ds or not ds.PatientID:
-                logging.warning("Setting default value for PatientID.")
-                ds.StudyID = 'NOID'  # 设置默认值
+            # 调用函数确保必要字段存在
+            ds = self.ensure_required_dicom_fields(ds)
                 
             self.currentSOPinstanceUID = ds['SOPInstanceUID'].value
             self.instanceNR = ds['InstanceNumber'].value
@@ -205,13 +250,14 @@ class MyStorage(object):
             combined_dict = {**ds_dict, **meta_dict}
             ds_json = json.dumps(combined_dict, indent=4)
 
-            logging.info(f'received SOP instance UID {self.currentSOPinstanceUID}')
+            logger.info(f'received SOP instance UID {self.currentSOPinstanceUID}')
+            logger.debug(f'received instance content {ds_json}')
 
             self.reconnect_rabbitmq()  # 确保连接有效
             rabbitmq_channel.basic_publish(exchange='', routing_key=RABBITMQ_QUEUE, body=ds_json)
             return 0x0000
         except Exception as e:
-            logging.error(f"Error handling C-STORE request: {e}")
+            logger.error(f"Error handling C-STORE request: {e}")
             return 0xC000  # 返回错误状态码
 
     def run(self):
@@ -223,11 +269,11 @@ if __name__ == "__main__":
     try:
         storager.run()
     except KeyboardInterrupt:
-        logging.info("Stopping the DICOM server due to user interruption.")
+        logger.info("Stopping the DICOM server due to user interruption.")
 
     except Exception as e:
-        logging.error(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
     finally:
         if storager.rabbitmq_connection and storager.rabbitmq_connection.is_open:
             storager.rabbitmq_connection.close()
-        logging.info("RabbitMQ connection closed.")
+        logger.info("RabbitMQ connection closed.")

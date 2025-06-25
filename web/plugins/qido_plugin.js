@@ -30,12 +30,14 @@ export default fp(async function (fastify, opts) {
       const size = parseInt(request.query.limit) || 100;
   
       const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
-      fastify.log.info(rawData.total);
+      fastify.log.info(`found ${rawData.total} studies`);
 
       for (let i = 0; i < rawData.hits.length; i++) {
+        fastify.log.debug(rawData.hits[i]);
         const study = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
         const query = { match: {"StudyInstanceUID": study["0020000D"].Value[0]}};
         const totalInstances = await fastify.getDataCountFromElasticsearch('instance', query);
+        fastify.log.info(`found ${totalInstances.total} instances for the study ${study["0020000D"].Value[0]}`);
         const tag = {};
         tag['vr'] = "IS";
         const value = [];
@@ -45,14 +47,8 @@ export default fp(async function (fastify, opts) {
 
         res.push(study);
       }
-      // async function processAllItems() {
-      //   await Promise.all(rawData.map(async (item) => {
-
-      //   }));
-      // }
-      // processAllItems();
       
-      fastify.log.info(res);
+      fastify.log.debug(res);
       fastify.log.info(res.length);
       
       // const processedData = processData(rawData);
@@ -83,12 +79,14 @@ export default fp(async function (fastify, opts) {
       const size = parseInt(request.query.limit) || 100;
   
       const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
-      fastify.log.info(rawData.total);
+      fastify.log.info(`found ${rawData.total} series`);
 
       for (let i = 0; i < rawData.hits.length; i++) {
+          fastify.log.debug(rawData.hits[i]);
           const series = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
           const query = { match: {"SeriesInstanceUID": series["0020000E"].Value[0]}};
           const totalInstances = await fastify.getDataCountFromElasticsearch('instance', query);
+          fastify.log.info(`found ${totalInstances.total} instances for the series ${series["0020000E"].Value[0]}`);
           const tag = {};
           tag['vr'] = "IS";
           tag['Value'] = [totalInstances.total];
@@ -96,7 +94,7 @@ export default fp(async function (fastify, opts) {
           res.push(series);
       }
 
-      fastify.log.info(res);
+      fastify.log.debug(res);
       fastify.log.info(res.length);
       
       // const processedData = processData(rawData);
@@ -127,10 +125,12 @@ export default fp(async function (fastify, opts) {
       const size = parseInt(request.query.limit) || 1000;                                                                               
   
       const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
-      fastify.log.info(rawData.total);
+      fastify.log.info(`found ${rawData.total} instances`);
       rawData.hits.forEach((value) => {
-        const study = DicomMetaDictionary.denaturalizeDataset(value);
-        res.push(study);
+        fastify.log.debug(value);
+        const instance = DicomMetaDictionary.denaturalizeDataset(value);
+        fastify.log.info(`SOPInstanceUID: ${instance["00080018"].Value[0]}`);
+        res.push(instance);
       })
       
       fastify.log.info(res.length);

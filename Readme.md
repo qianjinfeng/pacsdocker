@@ -20,6 +20,16 @@ upload generated dicom images via storescu scp 11112
 test via elastic
 curl -XGET 'http://localhost:9201/_cluster/health?pretty=true' -u elastic:elastic
 curl -u elastic:elastic -X GET  http://localhost:9201/study/_search?pretty -H 'Content-Type: application/json'
+curl -u elastic:elastic -X GET "http://localhost:9201/instance/_search?pretty" \
+  -H "Content-Type: application/json" \
+  -d '
+{
+  "query": {
+    "term": {
+      "SOPInstanceUID": "1.2.826.0.1.3680043.8.498.67951756530671581464987184828766755446"
+    }
+  }
+}'
 test via web
 curl http://localhost:4004/studies
 
