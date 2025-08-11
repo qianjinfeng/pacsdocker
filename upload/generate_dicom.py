@@ -57,7 +57,8 @@ def generate_dicom_files(output_dir, num_files=100):
         file_meta.ImplementationClassUID = '1.3.6.1.4.1.9590.100.1.0.100.4.0'
         file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
 
-        dt = fake.date_time()
+        start_date = datetime.datetime(1998, 1, 1, 0, 0, 0) # 2000年1月1日
+        dt = fake.date_time_between_dates(datetime_start=start_date, datetime_end=None)
         date_str = dt.strftime('%Y%m%d')
         time_str = dt.strftime('%H%M%S.%f')
 
@@ -78,7 +79,7 @@ def generate_dicom_files(output_dir, num_files=100):
         ds.ContentDate = date_str
         ds.AcquisitionTime = time_str
         # 预定义字符串列表
-        string_options = ['苹果', '香蕉', '橙子', '葡萄', '草莓']
+        string_options = ['头部', '腹部', '胸部', '手部', '腿部', '手臂', '脊柱', '骨盆', '颈部']
         ds.SeriesDescription = fake.random_element(elements=string_options)
         ds.Modality = 'CT'
         ds.Manufacturer = 'Manufacturer'
@@ -93,7 +94,7 @@ def generate_dicom_files(output_dir, num_files=100):
         ds.AccessionNumber = access_id
 
         ds.PatientID = f'ID{i+1:06d}'
-        bd = fake.date_time()
+        bd = fake.date_time_between_dates(datetime_start=start_date, datetime_end=None)
         ds.PatientBirthDate = bd.strftime('%Y%m%d')
         ds.PatientSex = fake.random_element(elements=('M', 'F'))
         ds.StudyInstanceUID = pydicom.uid.generate_uid()

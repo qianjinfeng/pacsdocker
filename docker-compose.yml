@@ -15,7 +15,7 @@ services:
         condition: service_healthy
     environment:
       - LOG_LEVEL=info
-      - NUMBER_OF_FILES=5
+      - NUMBER_OF_FILES=50
 
   scp:
     build: ./scp
