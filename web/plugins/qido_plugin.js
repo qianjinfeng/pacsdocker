@@ -1,5 +1,5 @@
 import fp from 'fastify-plugin'
-import { DicomMetaDictionary } from "../util/DicomMetaDictionary.js";
+import { denaturalizeDataset } from 'dcmjs';
 
 // the use of fastify-plugin is required to be able
 // to export the decorators to the outer scope
@@ -34,7 +34,7 @@ export default fp(async function (fastify, opts) {
 
       for (let i = 0; i < rawData.hits.length; i++) {
         fastify.log.debug(rawData.hits[i]);
-        const study = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
+        const study = denaturalizeDataset(rawData.hits[i]);
         const query = { match: {"StudyInstanceUID": study["0020000D"].Value[0]}};
         const totalInstances = await fastify.getDataCountFromElasticsearch('instance', query);
         fastify.log.info(`found ${totalInstances.total} instances for the study ${study["0020000D"].Value[0]}`);
@@ -83,7 +83,7 @@ export default fp(async function (fastify, opts) {
 
       for (let i = 0; i < rawData.hits.length; i++) {
           fastify.log.debug(rawData.hits[i]);
-          const series = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
+          const series = denaturalizeDataset(rawData.hits[i]);
           const query = { match: {"SeriesInstanceUID": series["0020000E"].Value[0]}};
           const totalInstances = await fastify.getDataCountFromElasticsearch('instance', query);
           fastify.log.info(`found ${totalInstances.total} instances for the series ${series["0020000E"].Value[0]}`);
@@ -128,7 +128,7 @@ export default fp(async function (fastify, opts) {
       fastify.log.info(`found ${rawData.total} instances`);
       rawData.hits.forEach((value) => {
         fastify.log.debug(value);
-        const instance = DicomMetaDictionary.denaturalizeDataset(value);
+        const instance = denaturalizeDataset(value);
         fastify.log.info(`SOPInstanceUID: ${instance["00080018"].Value[0]}`);
         res.push(instance);
       })

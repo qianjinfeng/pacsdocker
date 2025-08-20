@@ -1,5 +1,5 @@
 import fp from 'fastify-plugin'
-import { DicomMetaDictionary } from "../util/DicomMetaDictionary.js";
+import { denaturalizeDataset } from 'dcmjs';
 
 // the use of fastify-plugin is required to be able
 // to export the decorators to the outer scope
@@ -162,7 +162,7 @@ export default fp(async function (fastify, opts) {
           const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
           fastify.log.info(`found ${rawData.total} metadata`);
           for (let i = 0; i < rawData.hits.length; i++) {
-            const study = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
+            const study = denaturalizeDataset(rawData.hits[i]);
             res.push(study);
           }
           reply.code(200).send(res);
@@ -191,7 +191,7 @@ export default fp(async function (fastify, opts) {
           fastify.log.info(`found ${rawData.total} metadata`);
 
           for (let i = 0; i < rawData.hits.length; i++) {
-            const series = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
+            const series = denaturalizeDataset(rawData.hits[i]);
             res.push(series);
           }
 
@@ -221,7 +221,7 @@ export default fp(async function (fastify, opts) {
           const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
           fastify.log.info(`found ${rawData.total} metadata`);
           rawData.hits.forEach((value) => {
-            const study = DicomMetaDictionary.denaturalizeDataset(value);
+            const study = denaturalizeDataset(value);
             res.push(study);
           })
 

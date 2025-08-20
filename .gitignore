@@ -1,3 +1,4 @@
 /converter/node_modules
+/web/node_modules
 /volumes/
 /converter/*.log
