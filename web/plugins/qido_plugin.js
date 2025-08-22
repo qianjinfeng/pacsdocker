@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin'
-import { denaturalizeDataset } from 'dcmjs';
+import dcmjs from 'dcmjs';
+const { DicomMetaDictionary } = dcmjs.default.data;
 
 // the use of fastify-plugin is required to be able
 // to export the decorators to the outer scope
@@ -27,14 +28,14 @@ export default fp(async function (fastify, opts) {
       const index = request.query.index || 'study';
       const query = request.query.query || { match_all: {} };
       const from = parseInt(request.query.offset) || 0;
-      const size = parseInt(request.query.limit) || 100;
+      const size = parseInt(request.query.limit) || 1000;
   
       const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
       fastify.log.info(`found ${rawData.total} studies`);
 
       for (let i = 0; i < rawData.hits.length; i++) {
         fastify.log.debug(rawData.hits[i]);
-        const study = denaturalizeDataset(rawData.hits[i]);
+        const study = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
         const query = { match: {"StudyInstanceUID": study["0020000D"].Value[0]}};
         const totalInstances = await fastify.getDataCountFromElasticsearch('instance', query);
         fastify.log.info(`found ${totalInstances.total} instances for the study ${study["0020000D"].Value[0]}`);
@@ -76,14 +77,14 @@ export default fp(async function (fastify, opts) {
       const index = request.query.index || 'series';
       const query = request.query.query || { match: {"StudyInstanceUID": request.params.study} };
       const from = parseInt(request.query.offset) || 0;
-      const size = parseInt(request.query.limit) || 100;
+      const size = parseInt(request.query.limit) || 1000;
   
       const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
       fastify.log.info(`found ${rawData.total} series`);
 
       for (let i = 0; i < rawData.hits.length; i++) {
           fastify.log.debug(rawData.hits[i]);
-          const series = denaturalizeDataset(rawData.hits[i]);
+          const series = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
           const query = { match: {"SeriesInstanceUID": series["0020000E"].Value[0]}};
           const totalInstances = await fastify.getDataCountFromElasticsearch('instance', query);
           fastify.log.info(`found ${totalInstances.total} instances for the series ${series["0020000E"].Value[0]}`);
@@ -128,7 +129,7 @@ export default fp(async function (fastify, opts) {
       fastify.log.info(`found ${rawData.total} instances`);
       rawData.hits.forEach((value) => {
         fastify.log.debug(value);
-        const instance = denaturalizeDataset(value);
+        const instance = DicomMetaDictionary.denaturalizeDataset(value);
         fastify.log.info(`SOPInstanceUID: ${instance["00080018"].Value[0]}`);
         res.push(instance);
       })

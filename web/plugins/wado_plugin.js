@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin'
-import { denaturalizeDataset } from 'dcmjs';
+import dcmjs from 'dcmjs';
+const { DicomMetaDictionary } = dcmjs.default.data;
 
 // the use of fastify-plugin is required to be able
 // to export the decorators to the outer scope
@@ -28,48 +29,52 @@ export default fp(async function (fastify, opts) {
     //     }
     //   });
 
-    //   fastify.decorate('retrieveInstanceRS', async (request, reply) => {
-    //     try {
-    //       // if the query params have frame use retrieveInstanceFrames instead
-    //       if (request.params.frames) fastify.retrieveInstanceFrames(request, reply);
-    //       else {
-    //         try {
-    //           const dicomDB = fastify.couch.db.use(config.db);
-    //           const { instance } = request.params;
-    //           const dataset = await fastify.getDicomBuffer(instance, dicomDB);
-    //           const { data, boundary } = await fastify.packMultipartDicomsInternal([dataset]);
-    //           // send response
-    //           reply.header(
-    //             'Content-Type',
-    //             `multipart/related; type=application/dicom; boundary=${boundary}`
-    //           );
-    //           reply.header('content-length', Buffer.byteLength(data));
-    //           reply.send(Buffer.from(data));
-    //         } catch (err) {
-    //           if (err.statusCode === 404)
-    //             reply.send(
-    //               new ResourceNotFoundError(
-    //                 'Instance',
-    //                 request.params.instance || request.query.objectUID,
-    //                 err
-    //               )
-    //             );
-    //           else
-    //             reply.send(
-    //               new InternalError(`getWado with params ${JSON.stringify(request.params)}`, err)
-    //             );
-    //         }
-    //       }
-    //     } catch (err) {
-    //       reply.send(
-    //         new ResourceNotFoundError(
-    //           'Instance',
-    //           request.params.instance || request.query.objectUID,
-    //           err
-    //         )
-    //       );
-    //     }
-    //   });
+      // fastify.decorate('retrieveInstanceRS', async (request, reply) => {
+      //   try {
+      //     const res = [];
+   
+      //     const index = request.query.index || 'instance';
+      //     const query = request.query.query || {
+      //       bool: {
+      //         must: [
+      //           { term: { StudyInstanceUID: request.params.study } }, 
+      //           { term: { SeriesInstanceUID: request.params.series } },
+      //           { term: { SOPInstanceUID: request.params.instance } }
+      //         ]
+      //       }
+      //     };
+      //     const from = parseInt(request.query.from) || 0;
+      //     const size = parseInt(request.query.size) || 100;
+      
+      //     const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
+      //     fastify.log.info(`found ${rawData.total} instance`);
+      //     for (let i = 0; i < rawData.hits.length; i++) {
+      //       const instance = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
+      //       const pixelData = new Uint8Array(512);
+      //       const dataset = {
+      //         ...instance,
+      //         "7fe00010": {
+      //           vr: 'OW',
+      //           Value: [pixelData]  // ⬅️ 直接嵌入像素数据（推荐方式）
+      //         }
+      //       };
+
+      //       // 删除 File Meta Information 中不需要手动设置的字段（可由 dcmjs 自动生成）
+      //       delete dataset["00020000"]; // 让库自动计算
+      //       // 创建 DICOM 消息
+      //       const dicomMessage = DicomMessage.fromDataset(dataset);
+      //     }
+
+      //   } catch (err) {
+      //     reply.send(
+      //       new ResourceNotFoundError(
+      //         'Instance',
+      //         request.params.instance || request.query.objectUID,
+      //         err
+      //       )
+      //     );
+      //   }
+      // });
     
     //   fastify.decorate('retrieveInstanceFrames', async (request, reply) => {
     //     // wado-rs frame retrieve
@@ -162,7 +167,7 @@ export default fp(async function (fastify, opts) {
           const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
           fastify.log.info(`found ${rawData.total} metadata`);
           for (let i = 0; i < rawData.hits.length; i++) {
-            const study = denaturalizeDataset(rawData.hits[i]);
+            const study = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
             res.push(study);
           }
           reply.code(200).send(res);
@@ -185,13 +190,13 @@ export default fp(async function (fastify, opts) {
             }
           };
           const from = parseInt(request.query.from) || 0;
-          const size = parseInt(request.query.size) || 100;
+          const size = parseInt(request.query.size) || 1000;
       
           const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
           fastify.log.info(`found ${rawData.total} metadata`);
 
           for (let i = 0; i < rawData.hits.length; i++) {
-            const series = denaturalizeDataset(rawData.hits[i]);
+            const series = DicomMetaDictionary.denaturalizeDataset(rawData.hits[i]);
             res.push(series);
           }
 
@@ -216,12 +221,12 @@ export default fp(async function (fastify, opts) {
             }
           };
           const from = parseInt(request.query.from) || 0;
-          const size = parseInt(request.query.size) || 100;
+          const size = parseInt(request.query.size) || 1000;
       
           const rawData = await fastify.getDataFromElasticsearch(index, query, from, size);
           fastify.log.info(`found ${rawData.total} metadata`);
           rawData.hits.forEach((value) => {
-            const study = denaturalizeDataset(value);
+            const study = DicomMetaDictionary.denaturalizeDataset(value);
             res.push(study);
           })
 

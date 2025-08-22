@@ -1,9 +1,9 @@
 import path from 'path'
 import AutoLoad from '@fastify/autoload'
 import { fileURLToPath } from 'url'
-import studiesSchema from './schemas/studies_output_schema.json' assert { type: 'json' }
-import seriesSchema from './schemas/series_output_schema.json' assert { type: 'json' }
-import instancesSchema from './schemas/instances_output_schema.json' assert { type: 'json' }
+import studiesSchema from './schemas/studies_output_schema.json' with { type: 'json' }
+import seriesSchema from './schemas/series_output_schema.json' with { type: 'json' }
+import instancesSchema from './schemas/instances_output_schema.json' with { type: 'json' }
 import cors from '@fastify/cors';
 
 const __filename = fileURLToPath(import.meta.url)
