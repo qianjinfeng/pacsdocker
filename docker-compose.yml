@@ -23,7 +23,7 @@ services:
     networks:
       - dicom-network
     ports:
-      - "11113:11112"
+      - "11112:11112"
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -127,9 +127,9 @@ services:
     networks:
       - dicom-network
     ports:
-      - "5002:5001"
-      - "8081:8080"
-      - "4002:4001"
+      - "5001:5001"
+      - "8080:8080"
+      - "4001:4001"
     volumes:
       - ./config/ipfs/001.sh:/container-init.d/001.sh
       - idata:/data/ipfs
