@@ -192,6 +192,14 @@ class MyStorage(object):
     def ensure_required_dicom_fields(self, ds):
         """
         确保 DICOM 数据集中包含必要的字段，若缺失则设置默认值。
+        (0008,0020): Study Date
+        (0008,0030): Study Time
+        (0010,0010): Patient's Name
+        (0010,0020): Patient ID
+        (0010,0030): Patient's Birth Date
+        (0010,0040): Patient's Sex
+        (0020,000D): Study Instance UID
+        (0020,0010): Study ID
         
         参数:
             ds (pydicom.Dataset): 要检查并补充的 DICOM 数据集对象
@@ -199,6 +207,11 @@ class MyStorage(object):
         返回:
             pydicom.Dataset: 补充后的数据集
         """
+        # 检查并设置 PatientName
+        if 'PatientName' not in ds or not ds.PatientName:
+            logger.warning("PatientName is missing or empty. Setting default value to 'UNKNOWN'.")
+            ds.PatientName = 'UNKNOWN'  # 默认值为 'UNKOWN' 
+
         # 检查并设置 PatientSex
         if 'PatientSex' not in ds or not ds.PatientSex:
             logger.warning("PatientSex is missing or empty. Setting default value to 'O'.")

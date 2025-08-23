@@ -7,7 +7,7 @@ const config = {
     queue: process.env.RABBITMQ_QUEUE || 'dicom_queue'
   },
   elasticsearch: {
-    node: process.env.ELASTICSEARCH_NODE || 'http://localhost:9201',
+    node: process.env.ELASTICSEARCH_NODE || 'http://localhost:9200',
     auth: {
       username: process.env.ELASTICSEARCH_USER || 'elastic',
       password: process.env.ELASTICSEARCH_PASS || 'elastic'
